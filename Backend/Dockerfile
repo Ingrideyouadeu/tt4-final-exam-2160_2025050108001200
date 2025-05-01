@@ -1,30 +1,12 @@
 # stage 1 (BUILD)
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-# SDK => Software Development Kit
-
+FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
-
-ENV PATH="$PATH:/root/.dotnet/tools"
-
-# like .csproj = package.json package-lock.json ... *.json
-COPY *.csproj .
-
-# like npm install
+COPY ./Backend/ ./
 RUN dotnet restore
+RUN dotnet publish -c Release -o /app
 
-COPY . .
-
-# like => npm run build
-RUN dotnet publish -c Release -o /app/publish
-
-# stage 2 (RUN)
-
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
-
+# stage 2 (RUNTIME)
+FROM mcr.microsoft.com/dotnet/aspnet:7.0
 WORKDIR /app
-
-COPY --from=build /app/publish .
-
-EXPOSE 8080
-
-ENTRYPOINT [ "sh", "-c", "dotnet backend.dll" ]
+COPY --from=build /app ./
+ENTRYPOINT ["dotnet", "AttendanceApi.dll"]
