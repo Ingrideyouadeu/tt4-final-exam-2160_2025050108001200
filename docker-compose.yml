@@ -1,24 +1,59 @@
+version: "3.8"
+
 services:
   backend:
-    build: ./Backend
+    build: ./backend
     ports:
-      - "5000:80"
+      - "5000:80"  # Exposes backend on port 5000 on the host machine
     environment:
       - ConnectionStrings__DefaultConnection=Server=db;Database=AttendanceSystem;User=sa;Password=YourStrong@Passw0rd;
     depends_on:
-      - db
+      db:
+        condition: service_healthy  # Wait for the db service to be healthy before starting the backend
+    networks:
+      - final_network
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:80"
+      - "3000:80"  # Exposes frontend on port 3000 on the host machine
     depends_on:
-      - backend
+      backend: 
+        condition: service_started  # Ensure the backend service is started before the frontend
+    networks:
+      - final_network
 
   db:
     image: mcr.microsoft.com/mssql/server:2019-latest
     environment:
-      SA_PASSWORD: "YourStrong@Passw0rd"
-      ACCEPT_EULA: "Y"
+      - SA_PASSWORD=YourStrong@Passw0rd
+      - ACCEPT_EULA=Y
     ports:
-      - "1433:1433"
+      - "1433:1433"  # Exposes SQL Server on port 1433 on the host machine
+    healthcheck:
+      test: ["CMD", "sqlcmd", "-U", "sa", "-P", "YourStrong@Passw0rd", "-Q", "SELECT 1"]
+      interval: 30s
+      retries: 3
+      timeout: 10s
+    networks:
+      - final_network
+    volumes:
+      - db_data:/var/opt/mssql  # Persist database data
+
+  adminer:
+    image: adminer:latest
+    restart: always
+    ports:
+      - "8080:8080"  # Exposes Adminer on port 8080
+    depends_on:
+      db:
+        condition: service_healthy  # Wait for db to be healthy
+    networks:
+      - final_network
+
+networks:
+  final_network:
+    driver: bridge  # Ensures that all services are connected to a custom network
+
+volumes:
+  db_data:  # Persist the database volume
